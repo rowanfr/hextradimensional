@@ -828,6 +828,8 @@ name = "bevy_quickstart"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "game_layer",
+ "hexagon_layer",
  "log",
  "rand",
 ]
@@ -1872,6 +1874,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "game_layer"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "gethostname"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2123,6 +2132,14 @@ name = "hermit-abi"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
+
+[[package]]
+name = "hexagon_layer"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "game_layer",
+]
 
 [[package]]
 name = "hexasphere"
@@ -3837,6 +3854,13 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "voxel_layer"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
 
 [[package]]
 name = "walkdir"

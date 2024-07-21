@@ -15,5 +15,7 @@ pub(super) fn plugin(app: &mut App) {
         assets::plugin,
         movement::plugin,
         spawn::plugin,
+        hexagon_layer::HexPlugin,
+        game_layer::GamePlugin,
     ));
 }
