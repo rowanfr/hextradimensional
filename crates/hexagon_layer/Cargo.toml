@@ -5,4 +5,7 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.14"
-game_layer = {path = "../../crates/game_layer"}
+game_layer = {path = "../game_layer"}
+rand = "*"
+strum = "*"
+strum_macros = "*"

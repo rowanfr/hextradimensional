@@ -10,7 +10,10 @@ members = ["crates/*"]
 [dependencies]
 bevy = { version = "0.14", features = ["wayland"] }
 
+bevy_editor_pls = {git = "https://github.com/zhaop/bevy_editor_pls.git", branch = "bevy-0.14"}
+
 hexagon_layer = {path = "./crates/hexagon_layer"}
+voxel_layer = {path = "./crates/voxel_layer"}
 game_layer = {path = "./crates/game_layer"}
 
 # Disable low-severity logs at compile time for performance.

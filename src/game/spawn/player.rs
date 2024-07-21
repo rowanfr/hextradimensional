@@ -39,6 +39,7 @@ fn spawn_player(
 
     commands.spawn((
         Name::new("Player"),
+        game_layer::Player,
         Player,
         SpriteBundle {
             texture: image_handles[&ImageKey::Ducky].clone_weak(),

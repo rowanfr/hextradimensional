@@ -7,4 +7,6 @@ use crate::screen::Screen;
 pub(super) fn plugin(app: &mut App) {
     // Print state transitions in dev builds
     app.add_systems(Update, log_transitions::<Screen>);
+    // Added Editor in dev builds
+    app.add_plugins(bevy_editor_pls::EditorPlugin::default());
 }

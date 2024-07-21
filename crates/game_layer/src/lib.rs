@@ -1,12 +1,20 @@
 use bevy::prelude::*;
 
-use bevy::prelude::*;
+#[derive(Component)]
+pub struct Player;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameState>();
+        app
+        .init_state::<GameState>()
+        .add_computed_state::<HexagonLayer>()
+        .add_computed_state::<VoxelLayer>()
+        .add_systems(PreUpdate, change_layer)
+        .enable_state_scoped_entities::<HexagonLayer>()
+        .enable_state_scoped_entities::<VoxelLayer>()
+        .add_event::<ChangeLayer>();
     }
 }
 
@@ -39,9 +47,33 @@ impl ComputedStates for VoxelLayer {
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum GameState {
-    Menu,
     #[default]
+    Menu,
     Hexagon,
     Voxel
 }
 
+fn change_layer(
+    mut events: EventReader<ChangeLayer>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    for event in events.read() {
+        match event {
+            ChangeLayer::ToHex { id, direction } => next.set(GameState::Hexagon),
+            ChangeLayer::ToVoxel { id, direction, hex_type} => next.set(GameState::Voxel),
+        }
+    }
+}
+
+#[derive(Event)]
+pub enum ChangeLayer {
+    ToHex {
+        id: Vec2,
+        direction: u8,
+    },
+    ToVoxel {
+        id: Vec2,
+        direction: u8,
+        hex_type: u8,
+    }
+}
