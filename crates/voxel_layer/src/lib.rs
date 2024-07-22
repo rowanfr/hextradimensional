@@ -3,15 +3,24 @@ use game_layer::{ChangeLayer, VoxelLayer};
 use rand::{Rng, SeedableRng};
 use strum::IntoEnumIterator;
 
+mod player_controler;
+
 pub struct VoxelPlugin;
 
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(VoxelLayer), spawn_voxel_map);
-        app.add_systems(Update, (move_player, gravity, back_to_hex).run_if(in_state(VoxelLayer)));
+        app.add_systems(Update, (gravity, back_to_hex).in_set(VoxelLayerSystems::Update));
         app.init_resource::<Solid>();
-        app.init_resource::<Blocks>();
+        app.init_resource::<Blocks>()
+        .configure_sets(Update, VoxelLayerSystems::Update.run_if(in_state(VoxelLayer)))
+        .add_plugins(player_controler::VoxelCamera);
     }
+}
+
+#[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone, Copy)]
+enum VoxelLayerSystems {
+    Update,
 }
 
 #[derive(Component)]
@@ -26,6 +35,7 @@ fn spawn_voxel_map(
     let Some(ChangeLayer::ToVoxel {id, direction, hex_type}) = layer_change.read().last() else {return;};
     commands.spawn((
         VoxelPlayer,
+        Gravity,
         StateScoped(VoxelLayer),
         Camera3dBundle {
             camera: Camera {
@@ -61,52 +71,17 @@ fn pos_from_enter(direction: u8) -> Vec3 {
 #[derive(Resource)]
 struct ChunkId(Vec2);
 
-fn move_player(
-    mut player: Query<&mut Transform, With<VoxelPlayer>>,
-    input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
-    solid: Res<Solid>,
-) {
-    for mut player in &mut player {
-        let mut delta = Vec3::ZERO;
-        let mut yaw = 0.;
-        for key in input.get_pressed() {
-            match key {
-                KeyCode::KeyA => {delta.x -= 1.;},
-                KeyCode::KeyD => {delta.x += 1.;},
-                KeyCode::KeyW => {delta.z += 1.;},
-                KeyCode::KeyS => {delta.z -= 1.;},
-                KeyCode::KeyQ => {yaw += 1.;},
-                KeyCode::KeyE => {yaw -= 1.;},
-                _ => {}
-            }
-        }
-        let mut forward = player.forward().as_vec3();
-        forward.y = 0.;
-        forward = forward.normalize();
-        let mut right = player.right().as_vec3();
-        right.y = 0.;
-        right = right.normalize();
-        let mut next = player.translation + forward * delta.z * time.delta_seconds() * 10.;
-        next += right * delta.x * time.delta_seconds() * 10.;
-        let off = next.round().as_ivec3();
-        if !solid.get(off.x, off.y, off.z) {
-            player.translation = next;
-        }
-        player.rotate_y(yaw * time.delta_seconds());
-    }
-}
+#[derive(Component)]
+struct Gravity;
 
 fn gravity(
     solid: Res<Solid>,
-    mut player: Query<&mut Transform, With<VoxelPlayer>>,
+    mut player: Query<&mut Transform, With<Gravity>>,
     time: Res<Time>,
 ) {
     for mut player in &mut player {
-        let y = player.translation.y.ceil() - 1.;
-        let x = player.translation.x.round() as i32;
-        let z = player.translation.z.round() as i32;
-        if !solid.get(x, y as i32, z) {
+        let block = player.translation.floor().as_ivec3();
+        if !solid.get(block.x, block.y - 1, block.z) {
             player.translation -= Vec3::Y * 9.8 * time.delta_seconds()
         }
     }
