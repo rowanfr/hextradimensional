@@ -67,10 +67,9 @@ pub fn go_to_voxel(
 
         *hex_select = HexSelect {
             hex_id: Vec2::new(cursor.0.x(), cursor.0.y()),
-            direction: HexDirection::Up,
+            direction: *cursor.1,
         };
-        // ! Fix direction later
-        //direction: *cursor.1 as u8,
+        // ! Fix type later
         //hex_type: hex_type as u8,
         next_screen.set(Screen::VoxelWorld);
     }
