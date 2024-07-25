@@ -1,18 +1,23 @@
-use bevy::{ecs::event::ManualEventReader, input::mouse::MouseMotion, prelude::*, window::{CursorGrabMode, PrimaryWindow}};
-use game_layer::VoxelLayer;
-
-use crate::{Solid, VoxelLayerSystems, VoxelPlayer};
+use crate::screen::{
+    voxel_world::voxel_util::{Solid, VoxelPlayer},
+    Screen,
+};
+use bevy::{
+    ecs::event::ManualEventReader,
+    input::mouse::MouseMotion,
+    prelude::*,
+    window::{CursorGrabMode, PrimaryWindow},
+};
 
 pub struct VoxelCamera;
 
 impl Plugin for VoxelCamera {
     fn build(&self, app: &mut App) {
-        app
-        .init_resource::<VoxelSettings>()
-        .init_resource::<InputState>()
-        .add_systems(Update, cursor_grab.in_set(VoxelLayerSystems::Update))
-        .add_systems(Update, (player_look, player_move, apply_jump, player_jump).in_set(VoxelLayerSystems::Update))
-        .add_systems(OnEnter(VoxelLayer), initial_grab_cursor);
+        app.init_resource::<VoxelSettings>()
+            .init_resource::<InputState>()
+            .add_systems(Update, cursor_grab)
+            .add_systems(Update, (player_look, player_move, apply_jump, player_jump))
+            .add_systems(OnEnter(Screen::VoxelWorld), initial_grab_cursor);
     }
 }
 
@@ -74,8 +79,10 @@ fn player_look(
                     _ => {
                         // Using smallest of height or width ensures equal vertical and horizontal sensitivity
                         let window_scale = window.height().min(window.width());
-                        pitch -= (settings.mouse_sensitivity * ev.delta.y * window_scale).to_radians();
-                        yaw -= (settings.mouse_sensitivity * ev.delta.x * window_scale).to_radians();
+                        pitch -=
+                            (settings.mouse_sensitivity * ev.delta.y * window_scale).to_radians();
+                        yaw -=
+                            (settings.mouse_sensitivity * ev.delta.x * window_scale).to_radians();
                     }
                 }
 
@@ -100,12 +107,12 @@ fn cursor_grab(
         if keys.just_pressed(key_bindings.toggle_grab_cursor) {
             match window.cursor.grab_mode {
                 CursorGrabMode::None => {
-                window.cursor.grab_mode = CursorGrabMode::Confined;
-                window.cursor.visible = false;
+                    window.cursor.grab_mode = CursorGrabMode::Confined;
+                    window.cursor.visible = false;
                 }
                 _ => {
-                window.cursor.grab_mode = CursorGrabMode::None;
-                window.cursor.visible = true;
+                    window.cursor.grab_mode = CursorGrabMode::None;
+                    window.cursor.visible = true;
                 }
             }
         }
@@ -205,14 +212,14 @@ fn player_jump(
 ) {
     if input.just_pressed(settings.jump) {
         for (entity, player) in &players {
-            if player.translation.y.fract() > 0.2 {continue;}
+            if player.translation.y.fract() > 0.2 {
+                continue;
+            }
             info!("Adding Jump");
             let block = player.translation.floor().as_ivec3();
             let down = block - IVec3::Y;
             if solid.get(down.x, down.y, down.z) {
-                commands.entity(entity).insert(Jump {
-                    left: 1.2,
-                });
+                commands.entity(entity).insert(Jump { left: 1.2 });
             }
         }
     }

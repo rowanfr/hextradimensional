@@ -1,4 +1,4 @@
-use crate::cells::HexId;
+use crate::screen::hex_map::cells::HexId;
 
 pub struct Offset<T: Iterator<Item = HexId>> {
     iter: T,

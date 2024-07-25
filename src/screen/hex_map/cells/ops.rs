@@ -1,10 +1,9 @@
-use super::HexNeighbors;
-use super::HexId;
+use super::{HexDirection, HexId};
 use core::ops::{Add, AddAssign};
 
-impl Add<HexNeighbors> for HexId {
+impl Add<HexDirection> for HexId {
     type Output = HexId;
-    fn add(self, rhs: HexNeighbors) -> Self::Output {
+    fn add(self, rhs: HexDirection) -> Self::Output {
         self + rhs.direction()
     }
 }
@@ -23,8 +22,8 @@ impl AddAssign for HexId {
     }
 }
 
-impl AddAssign<HexNeighbors> for HexId {
-    fn add_assign(&mut self, rhs: HexNeighbors) {
+impl AddAssign<HexDirection> for HexId {
+    fn add_assign(&mut self, rhs: HexDirection) {
         *self += rhs.direction();
     }
 }

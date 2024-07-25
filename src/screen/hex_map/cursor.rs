@@ -1,47 +1,43 @@
 #[derive(Component)]
 pub struct Cursor;
 
+use super::cells::HexId;
+use super::hex_util::HEX_SIZE;
+use crate::game::spawn::player::Player;
+use crate::screen::HexDirection;
+use crate::screen::Screen;
 use bevy::prelude::*;
-use game_layer::{GameState, HexagonLayer, Player};
 use strum::IntoEnumIterator;
-
-use crate::{cells::{HexId, HexNeighbors}, HEX_SIZE};
 
 pub struct CursorPlugin;
 
 impl Plugin for CursorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(HexagonLayer), spawn_cursor);
-        app.add_systems(OnExit(HexagonLayer), clear_cursor);
-        app.add_systems(Update, move_cursor.run_if(in_state(HexagonLayer)));
+        app.add_systems(OnEnter(Screen::HexMap), spawn_cursor);
+        app.add_systems(OnExit(Screen::HexMap), clear_cursor);
+        app.add_systems(Update, move_cursor.run_if(in_state(Screen::HexMap)));
     }
 }
 
-fn spawn_cursor(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn spawn_cursor(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
-        HexNeighbors::Direction1,
+        HexDirection::Down,
         Name::new("Cursor"),
-        HexId::new(0,0),
+        HexId::new(0, 0),
         Cursor,
         SpriteBundle {
             sprite: Sprite {
                 custom_size: Some(Vec2::splat(HEX_SIZE)),
                 ..Default::default()
             },
-            texture: asset_server.load("images/hexs/outline.png"),
+            texture: asset_server.load("images/hexes/outline.png"),
             transform: Transform::from_translation(Vec3::NEG_Z * -9.),
             ..Default::default()
-        }
+        },
     ));
 }
 
-fn clear_cursor(
-    mut commands: Commands,
-    cursor: Query<Entity, With<Cursor>>,
-) {
+fn clear_cursor(mut commands: Commands, cursor: Query<Entity, With<Cursor>>) {
     for cursor in &cursor {
         commands.entity(cursor).despawn_recursive();
     }
@@ -49,17 +45,22 @@ fn clear_cursor(
 
 fn move_cursor(
     player: Query<&Transform, With<Player>>,
-    mut cursors: Query<(&mut HexId, &mut Transform, &mut HexNeighbors), (With<Cursor>, Without<Player>)>,
-){
+    mut cursors: Query<
+        (&mut HexId, &mut Transform, &mut HexDirection),
+        (With<Cursor>, Without<Player>),
+    >,
+) {
     let player = player.single();
     let id = HexId::from_xyz(player.translation);
     for (mut cursor, mut pos, mut n) in &mut cursors {
         if &id != cursor.as_ref() {
             *cursor = id;
         }
-        let mut direction = HexNeighbors::Direction1;
-        let mut distance = (id + HexNeighbors::Direction1).xyz().distance_squared(player.translation);
-        for neighbor in HexNeighbors::iter() {
+        let mut direction = HexDirection::Down;
+        let mut distance = (id + HexDirection::Down)
+            .xyz()
+            .distance_squared(player.translation);
+        for neighbor in HexDirection::iter() {
             let next = ((id + neighbor).xyz() / 2.).distance_squared(player.translation);
             if next < distance {
                 distance = next;
