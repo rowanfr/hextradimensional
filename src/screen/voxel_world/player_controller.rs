@@ -22,13 +22,12 @@ impl Plugin for VoxelCamera {
 }
 
 fn player_move(
-    mut player: Query<&mut Transform, With<VoxelPlayer>>,
+    mut player: Query<(&Transform, &mut bevy_rapier3d::prelude::KinematicCharacterController), With<VoxelPlayer>>,
     settings: Res<VoxelSettings>,
     input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    solid: Res<Solid>,
 ) {
-    for mut player in &mut player {
+    for (player, mut controller) in &mut player {
         let mut delta = Vec3::ZERO;
         if input.pressed(settings.move_forward) {
             delta.z += 1.;
@@ -48,12 +47,8 @@ fn player_move(
         let mut right = player.right().as_vec3();
         right.y = 0.;
         right = right.normalize();
-        let mut next = player.translation + forward * delta.z * time.delta_seconds() * 10.;
-        next += right * delta.x * time.delta_seconds() * 10.;
-        let off = next.round().as_ivec3();
-        if !solid.get(off.x, off.y, off.z) {
-            player.translation = next;
-        }
+        let next = (forward * delta.z + right * delta.x) * time.delta_seconds() * 10.;
+        controller.translation = Some(next);
     }
 }
 

@@ -19,6 +19,8 @@ rand = "0.8"
 strum = { version = "0.26.3", features = ["std", "derive", "strum_macros", "phf"] }
 strum_macros = "0.26.4"
 
+bevy_rapier3d = "*"
+
 [features]
 default = [
     # Default to a native dev build.

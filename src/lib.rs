@@ -55,6 +55,8 @@ impl Plugin for AppPlugin {
         // Add other plugins.
         app.add_plugins((game::plugin, screen::plugin, ui::plugin));
 
+        app.add_plugins(bevy_rapier3d::plugin::RapierPhysicsPlugin::<()>::default());
+
         // Enable dev tools for dev builds.
         #[cfg(feature = "dev")]
         app.add_plugins(dev_tools::plugin);

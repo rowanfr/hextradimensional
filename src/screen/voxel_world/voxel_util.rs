@@ -1,5 +1,6 @@
 use crate::screen::{voxel_world::player_controller::VoxelCamera, HexDirection, HexSelect, Screen};
 use bevy::{prelude::*, utils::HashMap};
+use bevy_rapier3d::prelude::*;
 use rand::{Rng, SeedableRng};
 use strum::IntoEnumIterator;
 
@@ -7,8 +8,9 @@ pub struct VoxelPlugin;
 
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Solid>();
-        app.init_resource::<Blocks>().add_plugins(VoxelCamera);
+        app
+        .init_resource::<Blocks>()
+        .add_plugins(VoxelCamera);
     }
 }
 
@@ -23,7 +25,6 @@ pub fn spawn_voxel_map(
 ) {
     commands.spawn((
         VoxelPlayer,
-        Gravity,
         StateScoped(Screen::VoxelWorld),
         Camera3dBundle {
             camera: Camera {
@@ -33,11 +34,23 @@ pub fn spawn_voxel_map(
             transform: Transform::from_translation(pos_from_enter(&hex_select.direction)),
             ..Default::default()
         },
-    ));
+        RigidBody::Dynamic,
+        LockedAxes::ROTATION_LOCKED,
+        Collider::cuboid(0.4, 0.4, 0.4),
+        bevy_rapier3d::control::KinematicCharacterController {
+            ..Default::default()
+        },
+    )).with_children(|p| {p.spawn((
+        SpatialBundle {
+            transform: Transform::from_translation(Vec3::NEG_Y),
+            ..Default::default()
+        },
+        Collider::cuboid(0.4, 0.5, 0.4)
+    ));});
     fill_world(
         commands,
         hex_select.hex_id,
-        WorldType::from_u8(1), // ! FIX THIS AS WORLD TYPE SELECTION. CURRENTLY FORCES STONE. USE SEED AND SAVE DATA
+        WorldType::from_u8(3), // ! FIX THIS AS WORLD TYPE SELECTION. CURRENTLY FORCES STONE. USE SEED AND SAVE DATA
         blocks.as_ref(),
         &mut solid,
     );
@@ -54,27 +67,12 @@ fn pos_from_enter(direction: &HexDirection) -> Vec3 {
     }
 }
 
-#[derive(Component)]
-pub struct Gravity;
-
-pub fn gravity(
-    solid: Res<Solid>,
-    mut player: Query<&mut Transform, With<Gravity>>,
-    time: Res<Time>,
-) {
-    for mut player in &mut player {
-        let block = player.translation.floor().as_ivec3();
-        if !solid.get(block.x, block.y - 1, block.z) {
-            player.translation -= Vec3::Y * 9.8 * time.delta_seconds()
-        }
-    }
-}
-
 #[derive(PartialEq, Eq)]
 enum WorldType {
     Empty,
     Stone,
     Coal,
+    Flat,
 }
 
 #[derive(Resource)]
@@ -107,12 +105,24 @@ impl WorldType {
             0 => WorldType::Empty,
             1 => WorldType::Stone,
             2 => WorldType::Coal,
+            3 => WorldType::Flat,
             _ => unreachable!(),
         }
     }
 
     fn sample(&self, mut rng: impl Rng, pos: IVec3) -> BlockType {
         match self {
+            WorldType::Flat => {
+                if pos.y == 0 {
+                    BlockType::Stone
+                } else if pos.y == 1 && rand::thread_rng().gen_bool(0.1) {
+                    BlockType::Coal
+                } else if pos.y == 2 && rand::thread_rng().gen_bool(0.1) {
+                    BlockType::Coal
+                } else {
+                    BlockType::Air
+                }
+            }
             WorldType::Empty => BlockType::Air,
             WorldType::Stone => {
                 if rng.gen_bool(0.6) || pos.y == 0 {
@@ -150,8 +160,7 @@ fn fill_world(
         for y in 0..16 {
             for z in 0..16 {
                 let block = world_type.sample(&mut rng, IVec3::new(x, y, z));
-                solid.set(x, y, z, block.is_solid());
-                commands.spawn((
+                let mut entity = commands.spawn((
                     StateScoped(Screen::VoxelWorld),
                     PbrBundle {
                         mesh: blocks.mesh(),
@@ -162,6 +171,9 @@ fn fill_world(
                         ..Default::default()
                     },
                 ));
+                if block.is_solid() {
+                    entity.insert(Collider::cuboid(0.5, 0.5, 0.5));
+                }
             }
         }
     }
