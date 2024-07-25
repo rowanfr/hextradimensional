@@ -1,80 +1,63 @@
+use crate::screen::{voxel_world::player_controller::VoxelCamera, HexDirection, HexSelect, Screen};
 use bevy::{prelude::*, utils::HashMap};
-use game_layer::{ChangeLayer, VoxelLayer};
 use rand::{Rng, SeedableRng};
 use strum::IntoEnumIterator;
-
-mod player_controler;
 
 pub struct VoxelPlugin;
 
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(VoxelLayer), spawn_voxel_map);
-        app.add_systems(Update, (gravity, back_to_hex).in_set(VoxelLayerSystems::Update));
         app.init_resource::<Solid>();
-        app.init_resource::<Blocks>()
-        .configure_sets(Update, VoxelLayerSystems::Update.run_if(in_state(VoxelLayer)))
-        .add_plugins(player_controler::VoxelCamera);
+        app.init_resource::<Blocks>().add_plugins(VoxelCamera);
     }
 }
 
-#[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone, Copy)]
-enum VoxelLayerSystems {
-    Update,
-}
-
 #[derive(Component)]
-struct VoxelPlayer;
+pub struct VoxelPlayer;
 
-fn spawn_voxel_map(
-    mut layer_change: EventReader<ChangeLayer>,
+pub fn spawn_voxel_map(
     mut commands: Commands,
     blocks: Res<Blocks>,
     mut solid: ResMut<Solid>,
+    hex_select: Res<HexSelect>,
 ) {
-    let Some(ChangeLayer::ToVoxel {id, direction, hex_type}) = layer_change.read().last() else {return;};
     commands.spawn((
         VoxelPlayer,
         Gravity,
-        StateScoped(VoxelLayer),
+        StateScoped(Screen::VoxelWorld),
         Camera3dBundle {
             camera: Camera {
                 order: 1,
                 ..Default::default()
             },
-            transform: Transform::from_translation(pos_from_enter(*direction)),
+            transform: Transform::from_translation(pos_from_enter(&hex_select.direction)),
             ..Default::default()
-        }
+        },
     ));
-    commands.insert_resource(ChunkId(*id));
     fill_world(
         commands,
-        *id,
-        WorldType::from_u8(*hex_type),
+        hex_select.hex_id,
+        WorldType::from_u8(1), // ! FIX THIS AS WORLD TYPE SELECTION. CURRENTLY FORCES STONE. USE SEED AND SAVE DATA
         blocks.as_ref(),
         &mut solid,
     );
 }
 
-fn pos_from_enter(direction: u8) -> Vec3 {
+fn pos_from_enter(direction: &HexDirection) -> Vec3 {
     match direction {
-        0 => Vec3::new(8., 0.,8.),
-        1 => Vec3::new(16., 8., 8.),
-        2 => Vec3::new(8., 8., 16.),
-        3 => Vec3::new(8., 16., 8.),
-        4 => Vec3::new(0., 8., 8.),
-        5 => Vec3::new(8., 8., 0.),
-        _ => unreachable!()
+        HexDirection::Down => Vec3::new(8., 0., 8.),
+        HexDirection::North => Vec3::new(16., 8., 8.),
+        HexDirection::East => Vec3::new(8., 8., 16.),
+        HexDirection::Up => Vec3::new(8., 16., 8.),
+        HexDirection::South => Vec3::new(0., 8., 8.),
+        HexDirection::West => Vec3::new(8., 8., 0.),
     }
 }
 
-#[derive(Resource)]
-struct ChunkId(Vec2);
-
 #[derive(Component)]
-struct Gravity;
+pub struct Gravity;
 
-fn gravity(
+pub fn gravity(
     solid: Res<Solid>,
     mut player: Query<&mut Transform, With<Gravity>>,
     time: Res<Time>,
@@ -87,28 +70,6 @@ fn gravity(
     }
 }
 
-fn back_to_hex(
-    player: Query<&Transform, With<VoxelPlayer>>,
-    mut events: EventWriter<ChangeLayer>,
-    chunk: Res<ChunkId>,
-) {
-    for player in &player {
-        if player.translation.y < -2. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 3 });
-        } else if player.translation.y > 18. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 0 });
-        } else if player.translation.x < -2. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 4 });
-        } else if player.translation.x > 18. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 1 });
-        } else if player.translation.z < -2. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 5 });
-        } else if player.translation.z > 18. {
-            events.send(ChangeLayer::ToHex { id: chunk.0, direction: 2 });
-        }
-    }
-}
-
 #[derive(PartialEq, Eq)]
 enum WorldType {
     Empty,
@@ -117,7 +78,7 @@ enum WorldType {
 }
 
 #[derive(Resource)]
-struct Solid([bool; 16*16*16]);
+pub struct Solid([bool; 16 * 16 * 16]);
 
 impl Default for Solid {
     fn default() -> Self {
@@ -130,10 +91,13 @@ impl Solid {
         self.0[(x + z * 16 + y * 16 * 16) as usize] = val;
     }
     fn clear(&mut self) {
-        self.0 = [false; 16*16*16];
+        self.0 = [false; 16 * 16 * 16];
     }
-    fn get(&self, x: i32, y: i32, z: i32) -> bool {
-        self.0.get((x + z * 16 + y * 16 * 16) as usize).cloned().unwrap_or(false)
+    pub fn get(&self, x: i32, y: i32, z: i32) -> bool {
+        self.0
+            .get((x + z * 16 + y * 16 * 16) as usize)
+            .cloned()
+            .unwrap_or(false)
     }
 }
 
@@ -143,7 +107,7 @@ impl WorldType {
             0 => WorldType::Empty,
             1 => WorldType::Stone,
             2 => WorldType::Coal,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -156,7 +120,7 @@ impl WorldType {
                 } else {
                     BlockType::Air
                 }
-            },
+            }
             WorldType::Coal => {
                 if rng.gen_bool(0.3) && pos.y != 0 {
                     BlockType::Air
@@ -165,7 +129,7 @@ impl WorldType {
                 } else {
                     BlockType::Stone
                 }
-            },
+            }
         }
     }
 }
@@ -178,21 +142,25 @@ fn fill_world(
     solid: &mut Solid,
 ) {
     solid.clear();
-    if world_type == WorldType::Empty {return;}
-    let mut rng = rand::rngs::StdRng::seed_from_u64((id.x as u64) << 32 | id.y as u64); 
+    if world_type == WorldType::Empty {
+        return;
+    }
+    let mut rng = rand::rngs::StdRng::seed_from_u64((id.x as u64) << 32 | id.y as u64);
     for x in 0..16 {
         for y in 0..16 {
             for z in 0..16 {
                 let block = world_type.sample(&mut rng, IVec3::new(x, y, z));
                 solid.set(x, y, z, block.is_solid());
                 commands.spawn((
-                    StateScoped(VoxelLayer),
+                    StateScoped(Screen::VoxelWorld),
                     PbrBundle {
                         mesh: blocks.mesh(),
                         material: blocks.texture(block),
-                        transform: Transform::from_translation(Vec3::new(x as f32, y as f32, z as f32)),
+                        transform: Transform::from_translation(Vec3::new(
+                            x as f32, y as f32, z as f32,
+                        )),
                         ..Default::default()
-                    }
+                    },
                 ));
             }
         }
@@ -209,7 +177,7 @@ enum BlockType {
 impl BlockType {
     const fn texture_path(&self) -> &'static str {
         match self {
-            BlockType::Air => "",
+            BlockType::Air => "", // ! To fix
             BlockType::Stone => "images/voxels/stone.png",
             BlockType::Coal => "images/voxels/coal.png",
         }
@@ -225,9 +193,9 @@ impl BlockType {
 }
 
 #[derive(Resource)]
-struct Blocks{
+pub struct Blocks {
     mesh: Handle<Mesh>,
-    textures: HashMap<BlockType, Handle<StandardMaterial>>
+    textures: HashMap<BlockType, Handle<StandardMaterial>>,
 }
 
 impl Blocks {
@@ -242,18 +210,21 @@ impl Blocks {
 impl FromWorld for Blocks {
     fn from_world(world: &mut World) -> Self {
         let mut blocks = Blocks {
-            mesh: world.resource_mut::<Assets<Mesh>>().add(Cuboid::new(1., 1., 1.)),
+            mesh: world
+                .resource_mut::<Assets<Mesh>>()
+                .add(Cuboid::new(1., 1., 1.)),
             textures: HashMap::default(),
         };
         let asset_server = world.resource::<AssetServer>().clone();
         let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
         for block in BlockType::iter() {
-            blocks.textures.insert(block, materials.add(
-                StandardMaterial {
+            blocks.textures.insert(
+                block,
+                materials.add(StandardMaterial {
                     base_color_texture: Some(asset_server.load(block.texture_path())),
                     ..Default::default()
-                }
-            ));
+                }),
+            );
         }
 
         blocks

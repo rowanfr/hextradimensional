@@ -23,7 +23,7 @@ pub struct SpawnPlayer;
 #[reflect(Component)]
 pub struct Player;
 
-fn spawn_player(
+pub fn spawn_player(
     _trigger: Trigger<SpawnPlayer>,
     mut commands: Commands,
     image_handles: Res<HandleMap<ImageKey>>,
@@ -39,7 +39,6 @@ fn spawn_player(
 
     commands.spawn((
         Name::new("Player"),
-        game_layer::Player,
         Player,
         SpriteBundle {
             texture: image_handles[&ImageKey::Ducky].clone_weak(),
@@ -54,6 +53,6 @@ fn spawn_player(
         Movement { speed: 420.0 },
         WrapWithinWindow,
         player_animation,
-        StateScoped(Screen::Playing),
+        StateScoped(Screen::HexMap),
     ));
 }

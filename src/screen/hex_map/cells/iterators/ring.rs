@@ -1,18 +1,24 @@
-use crate::cells::HexId as CellId;
+use crate::screen::hex_map::cells::HexId as CellId;
 
-use super::{super::HexNeighbors, Ranged};
+use super::{super::HexDirection, Ranged};
 
 pub struct RingIter {
     cell: CellId,
     len: u32,
-    direction: HexNeighbors,
+    direction: HexDirection,
     i: u32,
     done: bool,
 }
 
 impl RingIter {
     pub fn new(ring: u32) -> RingIter {
-        RingIter { cell: CellId::new(-(ring as i32), ring as i32), len: ring, direction: HexNeighbors::Direction1, i: 0, done: false }
+        RingIter {
+            cell: CellId::new(-(ring as i32), ring as i32),
+            len: ring,
+            direction: HexDirection::Down,
+            i: 0,
+            done: false,
+        }
     }
     pub fn ring(&self) -> u32 {
         self.len
@@ -22,15 +28,19 @@ impl RingIter {
 impl Iterator for RingIter {
     type Item = CellId;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {return None;}
+        if self.done {
+            return None;
+        }
         let out = Some(self.cell);
-        self.cell += self.direction;
+        self.cell += self.direction.direction();
         self.i += 1;
         if self.len == 0 {
             self.done = true;
         }
         if self.i == self.len {
-            if self.direction == HexNeighbors::Direction6 {self.done = true};
+            if self.direction == HexDirection::South {
+                self.done = true
+            };
             self.direction = self.direction.next();
             self.i = 0;
         }
@@ -39,7 +49,7 @@ impl Iterator for RingIter {
 }
 
 pub struct SpiralIter {
-    target: u32, 
+    target: u32,
     ring: RingIter,
 }
 

@@ -1,10 +1,11 @@
 //! The game's main screen states and transitions between them.
 
 mod credits;
+mod hex_map;
 mod loading;
-mod playing;
 mod splash;
 mod title;
+mod voxel_world;
 
 use bevy::prelude::*;
 
@@ -17,8 +18,14 @@ pub(super) fn plugin(app: &mut App) {
         loading::plugin,
         title::plugin,
         credits::plugin,
-        playing::plugin,
+        hex_map::plugin,
+        voxel_world::plugin,
     ));
+
+    app.insert_resource(HexSelect {
+        hex_id: Vec2::new(0.0, 0.0),
+        direction: HexDirection::Up,
+    });
 }
 
 /// The game's main screen states.
@@ -29,5 +36,26 @@ pub enum Screen {
     Loading,
     Title,
     Credits,
-    Playing,
+    HexMap,
+    VoxelWorld,
+    //Multiplayer,
+}
+
+/// This represents the edges of the hexagon mapping to the voxel world.
+/// The Direction with reference to the hexagon is in clockwise order for the enum, starting from the top edge.
+#[derive(Clone, Copy, PartialEq, strum_macros::EnumIter, Debug, Component)]
+pub enum HexDirection {
+    Up,
+    North,
+    East,
+    Down,
+    South,
+    West,
+}
+
+/// The current selected hexagon
+#[derive(Resource, Debug)]
+pub struct HexSelect {
+    pub hex_id: Vec2,
+    pub direction: HexDirection,
 }

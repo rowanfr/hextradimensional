@@ -1,11 +1,21 @@
-use bevy::{asset::{AssetServer, Handle}, math::{IVec2, Vec3}, prelude::{Changed, Component, FromWorld, Query, Resource}, render::texture::Image, transform::components::Transform, utils::HashMap};
+use bevy::{
+    asset::{AssetServer, Handle},
+    math::{IVec2, Vec3},
+    prelude::{Changed, Component, FromWorld, Query, Resource},
+    render::texture::Image,
+    transform::components::Transform,
+    utils::HashMap,
+};
+use std::f32::consts::PI;
 mod iterators;
 mod ops;
 
 pub use iterators::*;
 use strum::IntoEnumIterator;
 
-use crate::{HEX_SIZE, HEX_SPACING, SQR_3, SQR_3_DIV_THREE, SQR_3_DIV_TWO};
+use crate::screen::HexDirection;
+
+use super::hex_util::{HEX_SIZE, HEX_SPACING, SQR_3, SQR_3_DIV_THREE, SQR_3_DIV_TWO};
 
 #[derive(Component, PartialEq, Eq, Hash, Debug, Clone, Copy, Default)]
 pub struct HexId(IVec2);
@@ -27,7 +37,7 @@ impl HexId {
 
     #[inline]
     pub fn s(&self) -> i32 {
-        -self.q()-self.r()
+        -self.q() - self.r()
     }
 
     #[inline]
@@ -42,11 +52,15 @@ impl HexId {
 
     #[inline]
     pub fn xyz(&self) -> Vec3 {
-        Vec3 { x: self.x(), y: self.y(), z: 0. } * HEX_SIZE
+        Vec3 {
+            x: self.x(),
+            y: self.y(),
+            z: 0.,
+        } * HEX_SIZE
     }
 
     pub fn round(q: f32, r: f32) -> HexId {
-        let s = -q-r;
+        let s = -q - r;
         let round_q = q.round();
         let round_r = r.round();
         let round_s = s.round();
@@ -55,19 +69,18 @@ impl HexId {
         let r_dif = (r - round_r).abs();
         let q_dif = (q - round_q).abs();
 
-
         if s_dif > r_dif {
             if s_dif > q_dif {
                 HexId::new(round_q as i32, round_r as i32)
             } else {
-                HexId::new((-round_s-round_r) as i32, round_r as i32)
+                HexId::new((-round_s - round_r) as i32, round_r as i32)
             }
         } else {
             if r_dif > q_dif {
-                let r = (-round_s-round_q) as i32;
+                let r = (-round_s - round_q) as i32;
                 HexId::new(round_q as i32, r)
             } else {
-                HexId::new((-round_s-round_r) as i32, round_r as i32)
+                HexId::new((-round_s - round_r) as i32, round_r as i32)
             }
         }
     }
@@ -75,63 +88,53 @@ impl HexId {
     pub fn from_xyz(pos: Vec3) -> HexId {
         let x = pos.x / HEX_SPACING;
         let y = pos.y / HEX_SPACING;
-        let q = x * 2./3.;
-        let r = y * SQR_3_DIV_THREE - 1./3. * x;
+        let q = x * 2. / 3.;
+        let r = y * SQR_3_DIV_THREE - 1. / 3. * x;
         HexId::round(q, r)
     }
 }
 
-pub(crate) fn update_transforms(
-    mut hexagons: Query<(&mut Transform, &HexId), Changed<HexId>>,
-) {
+pub(crate) fn update_transforms(mut hexagons: Query<(&mut Transform, &HexId), Changed<HexId>>) {
     for (mut pos, hex) in &mut hexagons {
         pos.translation.x = hex.x() * HEX_SPACING;
         pos.translation.y = hex.y() * HEX_SPACING;
     }
 }
 
-#[derive(Clone, Copy, PartialEq, strum_macros::EnumIter, Debug, Component)]
-pub enum HexNeighbors {
-    Direction1,
-    Direction2,
-    Direction3,
-    Direction4,
-    Direction5,
-    Direction6,
-}
+const TWO_THIRDS_PI: f32 = PI * 2.0 / 3.0;
+const ONE_THIRD_PI: f32 = PI / 3.0;
 
-impl HexNeighbors {
+impl HexDirection {
     pub const fn direction(&self) -> HexId {
         match self {
-            HexNeighbors::Direction1 => HexId::new(0, -1),
-            HexNeighbors::Direction2 => HexId::new(1, -1),
-            HexNeighbors::Direction3 => HexId::new(1, 0),
-            HexNeighbors::Direction4 => HexId::new(0, 1),
-            HexNeighbors::Direction5 => HexId::new(-1, 1),
-            HexNeighbors::Direction6 => HexId::new(-1, 0),
+            HexDirection::Down => HexId::new(0, -1),
+            HexDirection::East => HexId::new(1, -1),
+            HexDirection::North => HexId::new(1, 0),
+            HexDirection::Up => HexId::new(0, 1),
+            HexDirection::West => HexId::new(-1, 1),
+            HexDirection::South => HexId::new(-1, 0),
         }
     }
 
-    pub const fn next(&self) -> HexNeighbors {
+    pub const fn next(&self) -> HexDirection {
         match self {
-            HexNeighbors::Direction1 => HexNeighbors::Direction2 ,
-            HexNeighbors::Direction2 =>HexNeighbors::Direction3,
-            HexNeighbors::Direction3 =>HexNeighbors::Direction4,
-            HexNeighbors::Direction4 => HexNeighbors::Direction5,
-            HexNeighbors::Direction5 => HexNeighbors::Direction6,
-            HexNeighbors::Direction6 => HexNeighbors::Direction1,
+            HexDirection::Down => HexDirection::East,
+            HexDirection::East => HexDirection::North,
+            HexDirection::North => HexDirection::Up,
+            HexDirection::Up => HexDirection::West,
+            HexDirection::West => HexDirection::South,
+            HexDirection::South => HexDirection::Down,
         }
     }
 
     pub fn angle(&self) -> f32 {
         match self {
-            HexNeighbors::Direction1 => -3.142,
-            HexNeighbors::Direction2 => -2.094,
-            HexNeighbors::Direction3 => -1.047,
-            HexNeighbors::Direction4 => 0.,
-            HexNeighbors::Direction5 => 1.047,
-            HexNeighbors::Direction6 => 2.094,
-            
+            HexDirection::Down => -PI,
+            HexDirection::East => -TWO_THIRDS_PI,
+            HexDirection::North => -ONE_THIRD_PI,
+            HexDirection::Up => 0.0,
+            HexDirection::West => ONE_THIRD_PI,
+            HexDirection::South => TWO_THIRDS_PI,
         }
     }
 }
@@ -150,7 +153,10 @@ impl FromWorld for CellIcons {
         let mut icons = CellIcons(HashMap::default());
         let asset_server = world.resource::<AssetServer>();
         for hex in HexagonType::iter() {
-            icons.0.insert(hex, asset_server.load(format!("images/hexs/{:?}.png", hex)));
+            icons.0.insert(
+                hex,
+                asset_server.load(format!("images/hexes/{:?}.png", hex).to_lowercase()),
+            );
         }
         icons
     }

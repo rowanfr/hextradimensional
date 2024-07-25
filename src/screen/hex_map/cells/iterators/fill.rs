@@ -1,7 +1,6 @@
-use crate::cells::HexId;
+use crate::screen::hex_map::cells::HexId;
 
 use super::Ranged;
-
 
 pub struct FastFill {
     q: std::ops::RangeInclusive<i32>,

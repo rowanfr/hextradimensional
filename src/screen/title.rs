@@ -9,7 +9,10 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::Title), enter_title);
 
     app.register_type::<TitleAction>();
-    app.add_systems(Update, handle_title_action.run_if(in_state(Screen::Title)));
+    app.add_systems(
+        Update,
+        (handle_title_action, handle_keyboard_action).run_if(in_state(Screen::Title)),
+    );
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Reflect)]
@@ -43,7 +46,7 @@ fn handle_title_action(
     for (interaction, action) in &mut button_query {
         if matches!(interaction, Interaction::Pressed) {
             match action {
-                TitleAction::Play => next_screen.set(Screen::Playing),
+                TitleAction::Play => next_screen.set(Screen::HexMap),
                 TitleAction::Credits => next_screen.set(Screen::Credits),
 
                 #[cfg(not(target_family = "wasm"))]
@@ -51,6 +54,28 @@ fn handle_title_action(
                     app_exit.send(AppExit::Success);
                 }
             }
+        }
+    }
+}
+
+fn handle_keyboard_action(
+    mut next_screen: ResMut<NextState<Screen>>,
+    input: Res<ButtonInput<KeyCode>>,
+    #[cfg(not(target_family = "wasm"))] mut app_exit: EventWriter<AppExit>,
+) {
+    for key in (*input).get_just_pressed() {
+        match key {
+            KeyCode::Escape => {
+                #[cfg(not(target_family = "wasm"))]
+                app_exit.send(AppExit::Success);
+            }
+            KeyCode::KeyP => {
+                next_screen.set(Screen::HexMap);
+            }
+            KeyCode::KeyC => {
+                next_screen.set(Screen::Credits);
+            }
+            _ => {}
         }
     }
 }
