@@ -7,7 +7,7 @@ use super::Screen;
 use crate::game::{assets::SoundtrackKey, audio::soundtrack::PlaySoundtrack};
 
 use player_controller::*;
-use voxel_util::{spawn_voxel_map, Blocks, Solid};
+use voxel_util::{spawn_voxel_map, Blocks};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::VoxelWorld), enter_playing);
@@ -19,7 +19,6 @@ pub(super) fn plugin(app: &mut App) {
         return_to_hex_map
             .run_if(in_state(Screen::VoxelWorld).and_then(input_just_pressed(KeyCode::Escape))),
     );
-    app.init_resource::<Solid>();
     app.init_resource::<Blocks>();
     app.add_plugins(player_controller::VoxelCamera);
 }

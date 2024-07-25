@@ -20,7 +20,6 @@ pub struct VoxelPlayer;
 pub fn spawn_voxel_map(
     mut commands: Commands,
     blocks: Res<Blocks>,
-    mut solid: ResMut<Solid>,
     hex_select: Res<HexSelect>,
 ) {
     commands.spawn((
@@ -36,7 +35,8 @@ pub fn spawn_voxel_map(
         },
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
-        Collider::cuboid(0.4, 0.4, 0.4),
+        Collider::ball(0.5),
+        KinematicCharacterControllerOutput::default(),
         bevy_rapier3d::control::KinematicCharacterController {
             ..Default::default()
         },
@@ -45,14 +45,12 @@ pub fn spawn_voxel_map(
             transform: Transform::from_translation(Vec3::NEG_Y),
             ..Default::default()
         },
-        Collider::cuboid(0.4, 0.5, 0.4)
     ));});
     fill_world(
         commands,
         hex_select.hex_id,
         WorldType::from_u8(3), // ! FIX THIS AS WORLD TYPE SELECTION. CURRENTLY FORCES STONE. USE SEED AND SAVE DATA
         blocks.as_ref(),
-        &mut solid,
     );
 }
 
@@ -149,9 +147,7 @@ fn fill_world(
     id: Vec2,
     world_type: WorldType,
     blocks: &Blocks,
-    solid: &mut Solid,
 ) {
-    solid.clear();
     if world_type == WorldType::Empty {
         return;
     }

@@ -1,5 +1,5 @@
 use crate::screen::{
-    voxel_world::voxel_util::{Solid, VoxelPlayer},
+    voxel_world::voxel_util::VoxelPlayer,
     Screen,
 };
 use bevy::{
@@ -8,6 +8,7 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, PrimaryWindow},
 };
+use bevy_rapier3d::prelude::{KinematicCharacterController, KinematicCharacterControllerOutput};
 
 pub struct VoxelCamera;
 
@@ -16,7 +17,7 @@ impl Plugin for VoxelCamera {
         app.init_resource::<VoxelSettings>()
             .init_resource::<InputState>()
             .add_systems(Update, cursor_grab)
-            .add_systems(Update, (player_look, player_move, apply_jump, player_jump))
+            .add_systems(Update, (player_look, player_move, apply_jump, player_jump).chain())
             .add_systems(OnEnter(Screen::VoxelWorld), initial_grab_cursor);
     }
 }
@@ -170,30 +171,23 @@ const JUMP_POWER: f32 = 9.8 * 3.;
 
 fn apply_jump(
     mut commands: Commands,
-    mut jumping: Query<(Entity, &mut Jump, &mut Transform)>,
+    mut jumping: Query<(Entity, &mut Jump, &mut KinematicCharacterController)>,
     time: Res<Time>,
-    solid: Res<Solid>,
 ) {
     // the max jump for this frame
-    let max_use = JUMP_POWER * time.delta_seconds();
-    for (entity, mut jump, mut pos) in &mut jumping {
-        // get current block
-        let block = pos.translation.floor().as_ivec3();
-        // get block 1 up
-        let up = block + IVec3::Y;
-        // if block 1 up is solid cant jump
-        if solid.get(up.x, up.y, up.z) {
-            jump.left = 0.;
-        }
-        // the amount this entity is going to move
-        let using = max_use.min(jump.left);
-        // move entity
-        pos.translation.y += using;
-        // remove this jump from total
-        jump.left -= using;
-        // if no jump left remove component
-        if jump.left <= 0. {
-            commands.entity(entity).remove::<Jump>();
+    let max_jump = JUMP_POWER * time.delta_seconds();
+    for (player, mut jump, mut controller) in &mut jumping {
+        let jump_power = max_jump.min(jump.left);
+        info!("jump to use {}", jump_power);
+        let to_move = if let Some(other) = controller.translation {
+            other + Vec3::Y * jump_power
+        } else {
+            Vec3::Y * jump_power
+        };
+        controller.translation = Some(to_move);
+        jump.left -= jump_power;
+        if jump.left <= 0. {    
+            commands.entity(player).remove::<Jump>();
         }
     }
 }
@@ -202,15 +196,11 @@ fn player_jump(
     input: Res<ButtonInput<KeyCode>>,
     settings: Res<VoxelSettings>,
     mut commands: Commands,
-    players: Query<(Entity, &Transform), With<VoxelPlayer>>,
-    solid: Res<Solid>,
+    players: Query<(Entity, &KinematicCharacterControllerOutput), With<VoxelPlayer>>,
 ) {
     if input.just_pressed(settings.jump) {
-        for (entity, player) in &players {
-            info!("Adding Jump");
-            let block = player.translation.floor().as_ivec3();
-            let down = block - IVec3::Y;
-            if solid.get(down.x, down.y, down.z) {
+        for (entity, output) in &players {
+            if output.grounded {
                 commands.entity(entity).insert(Jump { left: 3. });
             }
         }
