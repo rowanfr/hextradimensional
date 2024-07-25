@@ -40,7 +40,7 @@ fn player_move(
             delta.x -= 1.;
         }
         if input.pressed(settings.move_right) {
-            delta.x -= 1.;
+            delta.x += 1.;
         }
         let mut forward = player.forward().as_vec3();
         forward.y = 0.;
