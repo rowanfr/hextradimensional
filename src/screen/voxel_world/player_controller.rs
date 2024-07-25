@@ -171,7 +171,7 @@ struct Jump {
 }
 
 // jumping does not disable gravity so a value less then 9.8 will not make you move up
-const JUMP_POWER: f32 = 9.8 * 5.;
+const JUMP_POWER: f32 = 9.8 * 3.;
 
 fn apply_jump(
     mut commands: Commands,
@@ -212,14 +212,11 @@ fn player_jump(
 ) {
     if input.just_pressed(settings.jump) {
         for (entity, player) in &players {
-            if player.translation.y.fract() > 0.2 {
-                continue;
-            }
             info!("Adding Jump");
             let block = player.translation.floor().as_ivec3();
             let down = block - IVec3::Y;
             if solid.get(down.x, down.y, down.z) {
-                commands.entity(entity).insert(Jump { left: 1.2 });
+                commands.entity(entity).insert(Jump { left: 3. });
             }
         }
     }
