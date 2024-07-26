@@ -16,9 +16,10 @@ impl Plugin for VoxelCamera {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoxelSettings>()
             .init_resource::<InputState>()
-            .add_systems(Update, cursor_grab)
+            .add_systems(Update, cursor_toggle)
             .add_systems(Update, (player_look, player_move, apply_jump, player_jump).chain())
-            .add_systems(OnEnter(Screen::VoxelWorld), initial_grab_cursor);
+            .add_systems(OnEnter(Screen::VoxelWorld), cursor_grab)
+            .add_systems(OnExit(Screen::VoxelWorld), cursor_release);
     }
 }
 
@@ -99,7 +100,27 @@ fn player_look(
     }
 }
 
-fn cursor_grab(
+fn cursor_release(
+    mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    if let Ok(mut window) = primary_window.get_single_mut() {
+        window.cursor.grab_mode = CursorGrabMode::None;
+        window.cursor.visible = true;
+    } else {
+        warn!("Primary window not found for `initial_grab_cursor`!");
+    }
+}
+
+fn cursor_grab(mut primary_window: Query<&mut Window, With<PrimaryWindow>>) {
+    if let Ok(mut window) = primary_window.get_single_mut() {
+        window.cursor.grab_mode = CursorGrabMode::Confined;
+        window.cursor.visible = false;
+    } else {
+        warn!("Primary window not found for `initial_grab_cursor`!");
+    }
+}
+
+fn cursor_toggle(
     keys: Res<ButtonInput<KeyCode>>,
     key_bindings: Res<VoxelSettings>,
     mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
@@ -122,22 +143,7 @@ fn cursor_grab(
     }
 }
 
-fn initial_grab_cursor(mut primary_window: Query<&mut Window, With<PrimaryWindow>>) {
-    if let Ok(mut window) = primary_window.get_single_mut() {
-        match window.cursor.grab_mode {
-            CursorGrabMode::None => {
-                window.cursor.grab_mode = CursorGrabMode::Confined;
-                window.cursor.visible = false;
-            }
-            _ => {
-                window.cursor.grab_mode = CursorGrabMode::None;
-                window.cursor.visible = true;
-            }
-        }
-    } else {
-        warn!("Primary window not found for `initial_grab_cursor`!");
-    }
-}
+
 
 #[derive(Resource)]
 pub struct VoxelSettings {
