@@ -23,26 +23,26 @@ pub fn spawn_voxel_map(
     hex_select: Res<HexSelect>,
 ) {
     commands.spawn((
-        VoxelPlayer,
         StateScoped(Screen::VoxelWorld),
-        Camera3dBundle {
-            camera: Camera {
-                order: 1,
-                ..Default::default()
-            },
+        SpatialBundle {
             transform: Transform::from_translation(pos_from_enter(&hex_select.direction)),
             ..Default::default()
         },
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
-        Collider::ball(0.5),
+        Collider::capsule_y(0.5, 0.45),
         KinematicCharacterControllerOutput::default(),
         bevy_rapier3d::control::KinematicCharacterController {
             ..Default::default()
         },
     )).with_children(|p| {p.spawn((
-        SpatialBundle {
-            transform: Transform::from_translation(Vec3::NEG_Y),
+        VoxelPlayer,
+        Camera3dBundle {
+            camera: Camera {
+                order: 1,
+                ..Default::default()
+            },
+            transform: Transform::from_translation(Vec3::Y * 0.5),
             ..Default::default()
         },
     ));});

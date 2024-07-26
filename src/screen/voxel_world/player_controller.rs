@@ -23,12 +23,13 @@ impl Plugin for VoxelCamera {
 }
 
 fn player_move(
-    mut player: Query<(&Transform, &mut bevy_rapier3d::prelude::KinematicCharacterController), With<VoxelPlayer>>,
+    mut player: Query<&mut bevy_rapier3d::prelude::KinematicCharacterController>,
+    camera: Query<(&Transform, &Parent), With<VoxelPlayer>>,
     settings: Res<VoxelSettings>,
     input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
 ) {
-    for (player, mut controller) in &mut player {
+    for (camera, body) in &camera {
         let mut delta = Vec3::ZERO;
         if input.pressed(settings.move_forward) {
             delta.z += 1.;
@@ -42,14 +43,18 @@ fn player_move(
         if input.pressed(settings.move_right) {
             delta.x += 1.;
         }
-        let mut forward = player.forward().as_vec3();
+        let mut forward = camera.forward().as_vec3();
         forward.y = 0.;
         forward = forward.normalize();
-        let mut right = player.right().as_vec3();
+        let mut right = camera.right().as_vec3();
         right.y = 0.;
         right = right.normalize();
         let next = (forward * delta.z + right * delta.x) * time.delta_seconds() * 10.;
-        controller.translation = Some(next);
+        if let Ok(mut controller) = player.get_mut(body.get()) {
+            controller.translation = Some(next);
+        } else {
+            warn!("Voxel Player should be child of player controller");
+        }
     }
 }
 
